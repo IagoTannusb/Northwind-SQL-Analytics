@@ -11,6 +11,7 @@ Essas análises podem ser facilmente replicadas, extraindo insights valiosos dos
 2. Quais são os 10 clientes que mais geram receita e qual o ticket médio por pedido?
 3. Como evolui a receita mês a mês e o acumulado dentro do ano (YTD)?
 4. Quais produtos e categorias mais vendem em receita e em quantidade?
+5. Qual a receita por país e a participação no total
 ---
 
 ## Estrutura do Banco de Dados
@@ -26,7 +27,7 @@ O banco **Northwind** simula uma empresa de importação e exportação que real
 - **Regions / Territories** – Localização geográfica
 
 O banco inclui 14 tabelas, e os relacionamentos entre elas são mostrados no seguinte diagrama de entidades:
-![[Pasted image 20251022203252.png]]
+![Diagrama ER Northwind](assets/northwind-er-diagram.png)
 
 ---
 # Consultas para Responder às Perguntas de Negócio
@@ -131,7 +132,32 @@ SELECT
 	product_name,
 	SUM(quantity) as unidades_vendidas,
 	round(SUM(receita), 2) as receita_total,
-	RANK() OVER (PARTIT
+	RANK() OVER (PARTITION BY category_name ORDER BY SUM(receita) DESC) as posicao_categoria
+FROM base
+group by category_name, product_name
+```
+
+## 5. Qual a receita por país e a participação no total
+```SQL
+WITH  base AS (
+	SELECT
+    	o.ship_country,
+    	(od.unit_price * od.quantity * (1 - od.discount))::numeric(12,2) AS receita
+	FROM orders o
+	JOIN order_details od ON o.order_id = od.order_id
+), receita_agrupada AS (
+	SELECT 
+		ship_country,
+		SUM(receita) AS receita
+	FROM base 
+	GROUP BY ship_country
+)
+SELECT
+	ship_country,
+	receita,
+	round(receita / SUM(receita) OVER ()  * 100,2) AS pct_total
+FROM receita_agrupada
+ORDER BY receita DESC;
 ```
 
 ## Configuração Inicial
