@@ -138,6 +138,7 @@ group by category_name, product_name
 ```
 
 ## 5. Qual a receita por país e a participação no total
+**Insight**: Mostra concentração geográfica das vendas e potenciais mercados-alvo.
 ```SQL
 WITH  base AS (
 	SELECT
