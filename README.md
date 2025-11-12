@@ -12,6 +12,7 @@ Essas análises podem ser facilmente replicadas, extraindo insights valiosos dos
 3. Como evolui a receita mês a mês e o acumulado dentro do ano (YTD)?
 4. Quais produtos e categorias mais vendem em receita e em quantidade?
 5. Qual a receita por país e a participação no total
+6. Qual o volume de pedidos e receita por vendedor?
 ---
 
 ## Estrutura do Banco de Dados
@@ -91,7 +92,7 @@ WITH base as (
 	SELECT
 		o.order_date::date AS order_date,
 		EXTRACT(YEAR FROM o.order_date)::int as ano,
-		EXTRACT(MONTH FROM O.order_date)::int as mes_num,
+		EXTRACT(MONTH FROM o.order_date)::int as mes_num,
 		((od.unit_price * od.quantity) *(1 - od.discount))::numeric(12,2) as receita
 	FROM order_details od INNER JOIN orders o on o.order_id = od.order_id
 ), acumulado_mes as (
@@ -160,7 +161,75 @@ SELECT
 FROM receita_agrupada
 ORDER BY receita DESC;
 ```
+## 6. Qual o volume de pedidos e receita por vendedor?
+**Insight**: Permite avaliar a performance individual da equipe de vendas
+```SQL
+WITH base AS (
+	SELECT
+		e.first_name,
+		e.last_name,
+		o.order_id,
+        (od.unit_price * od.quantity * (1 - od.discount))::numeric(12,2) AS receita
+	FROM orders o INNER JOIN order_details od ON o.order_id = od.order_id
+				  INNER JOIN employees e ON o.employee_id = e.employee_id
+), agrupado AS (
+	SELECT 
+		first_name || ' ' || last_name AS funcionario,
+		COUNT(DISTINCT order_id) AS pedidos,
+		ROUND(SUM(receita), 2) AS receita_total
+	FROM base
+	GROUP BY 1
+	ORDER BY receita_total DESC
+)
+SELECT
+	funcionario,
+	pedidos,
+	receita_total
+FROM agrupado;
+```
+## 7. Qual o tempo médio entre o pedido e o envio, e o percentual de entregas no prazo?
+**Insight**: Mede eficiência logística e cumprimento de prazos de entrega.
+```SQL
+WITH base AS (
+	SELECT
+		s.company_name as transportadora,
+		o.shipped_date,
+		o.order_date,
+		o.required_date,
+		o.order_id
+	FROM orders o INNER JOIN order_details od ON o.order_id = od.order_id
+				  INNER JOIN shippers s ON o.ship_via = s.shipper_id
+)
+SELECT 
+	transportadora,
+	ROUND(AVG(shipped_date - order_date), 2) media_dias_envio,
+	ROUND(AVG(CASE WHEN shipped_date <= required_date THEN 1 ELSE 0 END) * 100, 2) AS pct_no_prazo
+FROM base
+GROUP BY transportadora
+```
+## 8. Qual o valor total concedido em descontos por mês?
+**Insight**: Mostra quanto a empresa deixa de faturar devido a descontos comerciais.
+```SQL
+WITH base AS (
+SELECT 
+o.order_date,
+od.unit_price,
+od.quantity,
+(od.unit_price * od.quantity)::numeric(12,2) AS valor_bruto,
+(od.unit_price * od.quantity * (1 - od.discount))::numeric(12,2) AS receita_liquida
+FROM orders o INNER JOIN order_details od ON o.order_id = od.order_id
+)
 
+SELECT 
+	EXTRACT(YEAR FROM order_date)::int AS ano_num,
+	EXTRACT(MONTH FROM order_date)::int AS mes_num,
+	SUM(valor_bruto) - SUM(receita_liquida) AS valor_descontado,
+	SUM(valor_bruto) AS valor_bruto,
+	SUM(receita_liquida) AS receita_liquida
+FROM base
+GROUP BY 1,2
+ORDER BY 1,2
+```
 ## Configuração Inicial
 
 ### 1. Manualmente
@@ -197,6 +266,7 @@ Creating db ... done
     - Senha: postgres
 
 Em seguida, selecione o banco de dados **northwind**.
+
 3. **Parar o Docker Compose**  
     Para encerrar o servidor iniciado pelo comando anterior, pressione `Ctrl + C` e remova os contêineres:
 
