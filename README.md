@@ -13,6 +13,10 @@ Essas análises podem ser facilmente replicadas, extraindo insights valiosos dos
 4. Quais produtos e categorias mais vendem em receita e em quantidade?
 5. Qual a receita por país e a participação no total
 6. Qual o volume de pedidos e receita por vendedor?
+7. Qual o tempo médio entre o pedido e o envio, e o percentual de entregas no prazo?
+8. Qual o valor total concedido em descontos por mês?
+9. Qual a porcentagem de clientes que realizaram mais de um pedido?
+10. Quais produtos estão com estoque crítico e precisam de reposição?
 ---
 
 ## Estrutura do Banco de Dados
@@ -28,7 +32,7 @@ O banco **Northwind** simula uma empresa de importação e exportação que real
 - **Regions / Territories** – Localização geográfica
 
 O banco inclui 14 tabelas, e os relacionamentos entre elas são mostrados no seguinte diagrama de entidades:
-![Diagrama ER Northwind](assets/northwind-er-diagram.png)
+![Diagrama ER Northwind](img/northwind-er-diagram.png)
 
 ---
 # Consultas para Responder às Perguntas de Negócio
@@ -230,6 +234,37 @@ FROM base
 GROUP BY 1,2
 ORDER BY 1,2
 ```
+## 9. Qual a porcentagem de clientes que realizaram mais de um pedido?
+**Insight**: Mede a fidelização e engajamento da base de clientes. 
+```SQL
+WITH pedidos AS (
+  SELECT customer_id, 
+  COUNT(DISTINCT order_id) AS qtd_pedidos
+  FROM orders
+  GROUP BY 1
+)
+SELECT
+  ROUND(SUM(CASE WHEN qtd_pedidos > 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*),2) AS taxa_recompra_pct
+FROM pedidos;
+```
+
+## 10. Quais produtos estão com estoque crítico e precisam de reposição?
+**Insight**: Identifica itens com risco de ruptura de estoque.
+```SQL
+SELECT
+    product_name AS produto,
+    units_in_stock AS estoque_atual,
+    units_on_order AS em_pedido,
+    reorder_level AS minimo_exigido,
+    (units_in_stock + units_on_order) AS estoque_total,
+    (reorder_level - (units_in_stock + units_on_order)) AS faltam_para_repor
+FROM products
+WHERE (units_in_stock + units_on_order) <= reorder_level
+  AND reorder_level > 0
+  AND discontinued = 0 
+ORDER BY faltam_para_repor DESC, estoque_total ASC;
+```
+
 ## Configuração Inicial
 
 ### 1. Manualmente
