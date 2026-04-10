@@ -9,8 +9,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     volumes:
-      - postgresql_bin:/usr/lib/postgresql
-      - postgresql_data:/var/lib/postgresql/data
+      - postgresql_data:/var/lib/postgresql
       - ./northwind.sql:/docker-entrypoint-initdb.d/northwind.sql
       - ./files:/files
     ports:
@@ -27,7 +26,6 @@ services:
       PGADMIN_LISTEN_PORT: 5050
       PGADMIN_CONFIG_SERVER_MODE: 'False'
     volumes:
-      - postgresql_bin:/usr/lib/postgresql
       - pgadmin_root_prefs:/root/.pgadmin
       - pgadmin_working_dir:/var/lib/pgadmin
       - ./files:/files
@@ -47,5 +45,4 @@ volumes:
     driver: local
   postgresql_data:
     driver: local
-  postgresql_bin:
-    driver: local
+    
